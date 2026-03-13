@@ -1,0 +1,27 @@
+# Python Virtual Environment
+mac/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database & Storage
+data/chroma_db/
+data/history/
+data/raw_docs/
+
+# Heavy Models & Temporary Assets
+ollama/mac/ollama
+/tmp/
+*.zip
+*.tar.gz
+
+# macOS system files
+.DS_Store
+
+# IDE and Editor Files
+.vscode/
+.idea/
+
+# Secret/Environment files
+.env
