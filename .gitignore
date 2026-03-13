@@ -25,3 +25,13 @@ ollama/mac/ollama
 
 # Secret/Environment files
 .env
+
+# Personal & Unwanted Documentation
+*.docx
+~$*.docx
+._*.docx
+*.txt
+feature_roadmap.md
+
+# Entire Data directory (including docs)
+data/
