@@ -12,6 +12,7 @@ When prompted to **"Select an option:"**, you can enter:
 - **`[Number]`** (e.g., `0`, `1`): Type the number of an existing session to load it and continue from where you left off.
 - **`d [Number]`** (e.g., `d 0`): Deletes the specified chat session permanently.
 - **`r [Number] [New Name]`** (e.g., `r 0 debugging_auth`): Renames the specified session so you can easily identify it later. Names can include spaces and will be saved safely.
+- **`b [Number] [New Name]`** (e.g., `b 0 experimental_branch`): Branches/Clones an existing session's history into a brand new chat. Perfect for testing alternative coding paths without destroying the original conversation context!
 
 ### Model Selection
 After selecting your chat session, you will be prompted to pick an AI model.
