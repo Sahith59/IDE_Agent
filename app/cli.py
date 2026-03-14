@@ -145,7 +145,7 @@ def session_menu():
 
         console.print(table)
         
-        console.print("[dim]Options: \\[number] = Load | d \\[number] = Delete | r \\[number] \\[new_id] = Rename | p = PR Generator | \\[Enter] = New Session[/dim]")
+        console.print("[dim]Options: \\[number] = Load | d \\[number] = Delete | r \\[number] \\[new_id] = Rename | b \\[number] \\[new_id] = Branch/Clone | p = PR Generator | \\[Enter] = New Session[/dim]")
         choice = console.input("[bold orange3]Select Option:[/bold orange3] ").strip()
         
         if not choice:
@@ -192,6 +192,18 @@ def session_menu():
                 if os.path.exists(old_path):
                     os.rename(old_path, new_path)
                     console.print(f"[green]Renamed session[/green] '{old_sid}' -> '{new_id}'")
+                    
+        elif len(parts) >= 3 and parts[0].lower() == 'b' and parts[1].isdigit():
+            idx = int(parts[1])
+            new_id = "_".join(parts[2:])
+            if idx < len(sessions):
+                old_sid = sessions[idx][0]
+                old_path = os.path.join(HISTORY_DIR, f"session_{old_sid}.json")
+                new_path = os.path.join(HISTORY_DIR, f"session_{new_id}.json")
+                if os.path.exists(old_path):
+                    import shutil
+                    shutil.copy2(old_path, new_path)
+                    console.print(f"[green]Branched session[/green] '{old_sid}' -> '{new_id}'")
         else:
             console.print("[red]Invalid choice, try again.[/red]")
 
@@ -239,6 +251,23 @@ def main():
             if not user_input.strip():
                 continue
                 
+            # If this is the very first message of a new session (UUID), generate a title using LLM
+            if len(session.history) == 0 and len(session.session_id) == 36 and '-' in session.session_id:
+                console.print("[dim]Auto-generating session title...[/dim]")
+                try:
+                    title_prompt = f"Summarize the core topic of this prompt in a short, meaningful phrase (3 to 7 words). Return ONLY the words, separated by underscores. No quotes, no spaces, no intro, no punctuation: {user_input}"
+                    title_response = llm.invoke(title_prompt)
+                    new_title = title_response.strip().replace(" ", "_").replace("'", "").replace('"', '').replace(".", "").replace("/", "").replace("\n", "").lower()[:60]
+                    new_title = new_title.strip("_")
+                    if new_title:
+                        old_filepath = session.filepath
+                        session.session_id = new_title
+                        session.filepath = os.path.join(HISTORY_DIR, f"session_{session.session_id}.json")
+                        if os.path.exists(old_filepath):
+                            os.rename(old_filepath, session.filepath)
+                except Exception as e:
+                    pass # Fail silently and keep the UUID if titling fails
+
             session.history.append(HumanMessage(content=user_input))
             
             # Semantic Routing - Fast Intent Classification
@@ -300,7 +329,7 @@ def main():
                 console.print("[dim]Generic Route Detected: Bypassing Database...[/dim]")
             
             # Select the correct System Prompt based on the Route
-            active_system_prompt = self.expert_system_prompt if getattr(route, 'name', 'expert') != 'generic' else self.generic_system_prompt
+            active_system_prompt = session.expert_system_prompt if getattr(route, 'name', 'expert') != 'generic' else session.generic_system_prompt
             all_messages = [active_system_prompt] + session.history
             raw_prompt = extract_prompt(all_messages, context_text)
 
