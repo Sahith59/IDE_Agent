@@ -18,6 +18,7 @@ console = Console()
 # Environment paths setup
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 HISTORY_DIR = os.path.abspath(os.path.join(APP_DIR, '..', 'data', 'history'))
+BM25_INDEX_PATH = os.path.abspath(os.path.join(APP_DIR, '..', 'data', 'bm25_index.pkl'))
 os.makedirs(HISTORY_DIR, exist_ok=True)
 
 # Important: Force HuggingFace to download the 1.3GB mixedbread model onto the external SSD, not the internal Mac drive
@@ -314,15 +315,51 @@ def main():
                     try:
                         from langchain_chroma import Chroma
                         from langchain_ollama import OllamaEmbeddings
+                        import pickle
                         
-                        console.print("[dim]Expert Route Detected: Searching knowledge base...[/dim]")
+                        console.print("[dim]Expert Route Detected: Performing Hybrid Search (Vector + Keyword)...[/dim]")
                         embeddings = OllamaEmbeddings(model="nomic-embed-text")
                         vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
                         
-                        results = vector_db.similarity_search(user_input, k=4)
-                        if results:
-                            context_text = "\n\n".join([f"--- Snippet ---\n{doc.page_content}" for doc in results])
-                            console.print(f"[dim green]✓ Found {len(results)} relevant document snippets.[/dim green]")
+                        chroma_results = vector_db.similarity_search(user_input, k=4)
+                        bm25_results = []
+                        
+                        if os.path.exists(BM25_INDEX_PATH):
+                            try:
+                                with open(BM25_INDEX_PATH, 'rb') as f:
+                                    bm25_retriever = pickle.load(f)
+                                bm25_retriever.k = 2  # Top 2 exact keyword matches
+                                bm25_results = bm25_retriever.invoke(user_input)
+                            except Exception as e:
+                                console.print(f"[dim red]Warning: BM25 keyword search failed: {e}[/dim red]")
+                                
+                        # Simple Ensemble deduplication
+                        all_results = chroma_results + bm25_results
+                        unique_docs = {}
+                        for doc in all_results:
+                            key = doc.page_content + doc.metadata.get("source", "")
+                            if key not in unique_docs:
+                                unique_docs[key] = doc
+                                
+                        final_results = list(unique_docs.values())[:6] # Cap at 6 total fragments
+                        
+                        if final_results:
+                            snippets = []
+                            for doc in final_results:
+                                source = os.path.basename(doc.metadata.get("source", "Unknown Document"))
+                                citation_parts = []
+                                if "page" in doc.metadata:
+                                    citation_parts.append(f"Page {doc.metadata['page']}")
+                                if "slide" in doc.metadata:
+                                    citation_parts.append(f"Slide {doc.metadata['slide']}")
+                                if "sheet" in doc.metadata:
+                                    citation_parts.append(f"Sheet {doc.metadata['sheet']}")
+                                    
+                                citation = f" ({', '.join(citation_parts)})" if citation_parts else ""
+                                snippets.append(f"--- Snippet: {source}{citation} ---\n{doc.page_content}")
+                                
+                            context_text = "\n\n".join(snippets)
+                            console.print(f"[dim green]✓ Found {len(final_results)} highly relevant document fragments.[/dim green]")
                     except Exception as e:
                         console.print(f"[dim red]Warning: RAG retrieval failed: {e}[/dim red]")
             else:

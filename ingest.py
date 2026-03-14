@@ -8,6 +8,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_core.messages import HumanMessage
+from langchain_community.retrievers import BM25Retriever
+import pickle
 from rich.console import Console
 
 console = Console()
@@ -16,6 +18,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.abspath(os.path.join(APP_DIR, 'data'))
 RAW_DOCS_DIR = os.path.join(DATA_DIR, 'raw_docs')
 CHROMA_DB_DIR = os.path.join(DATA_DIR, 'chroma_db')
+BM25_INDEX_PATH = os.path.join(DATA_DIR, 'bm25_index.pkl')
 
 def describe_image(image_path):
     """Uses the local Vision model to describe an extracted image or flowchart."""
@@ -202,8 +205,14 @@ def ingest():
         persist_directory=CHROMA_DB_DIR
     )
     
-    console.print(f"\n[bold green]Success! Advanced Knowledge base updated across {len(chunks)} chunks.[/bold green]")
-    console.print(f"Database stored securely at: {CHROMA_DB_DIR}")
+    console.print("\n[dim]Building BM25 Keyword Search Index...[/dim]")
+    bm25_retriever = BM25Retriever.from_documents(chunks)
+    with open(BM25_INDEX_PATH, 'wb') as f:
+        pickle.dump(bm25_retriever, f)
+    
+    console.print(f"\n[bold green]Success! Advanced Hybrid Knowledge base updated across {len(chunks)} chunks.[/bold green]")
+    console.print(f"Vector Database stored at: {CHROMA_DB_DIR}")
+    console.print(f"Keyword Index stored at: {BM25_INDEX_PATH}")
 
 if __name__ == "__main__":
     ingest()
