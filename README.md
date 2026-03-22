@@ -35,6 +35,9 @@ Documentation rarely consists of exclusively plain text. Nexus is engineered to 
 ### 5. Continuous Offline Learning
 Nexus supports instantaneous "drop-in" knowledge updates. By natively parsing Markdown (`.md`) files and Excel (`.xlsx`) spreadsheets into localized metadata chunks, developers can continuously drop meeting notes, deployment logs, or architecture decision records into the data directory for rapid re-indexing.
 
+### 6. Zero-Latency Workspace Awareness & File Injection
+To function as a true modular IDE assistant, Nexus executes a lightning-fast heuristic upon startup to map the user's current project directory (`os.getcwd()`), invisibly injecting the active repository's folder structure into the context window. Furthermore, developers can target local scripts using the `@filename` syntax (e.g., "Find the bug in `@auth.py`"). Nexus intercepts the token via regex, physically reads the raw source code, and directly injects it into the LLM stream. This guarantees 0.0s latency codebase inclusion and strictly bypasses the fragmentation risks of traditional document chunking.
+
 ---
 
 ## Technical Stack & Hardware Optimization

@@ -100,16 +100,43 @@ def list_sessions():
             pass
     return sessions
 
-def extract_prompt(messages, context_text=""):
+import re
+
+def generate_tree_map(startpath):
+    tree = []
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        tree.append(f'{indent}{os.path.basename(root)}/')
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            if not f.startswith('.'):
+                tree.append(f'{subindent}{f}')
+        dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', 'venv', '__pycache__', 'mac', 'data']]
+    return '\n'.join(tree[:200]) # Cap to 200 lines to preserve context window
+
+def find_custom_file(filename, startpath):
+    for root, dirs, files in os.walk(startpath):
+        if filename in files:
+            return os.path.join(root, filename)
+        dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', 'venv', '__pycache__', 'mac', 'data']]
+    return None
+
+def extract_prompt(messages, context_text="", injected_code="", tree_map=""):
     prompt = messages[0].content + "\n\n"
-    if context_text:
-        prompt += f"=== RELEVANT BACKGROUND CONTEXT ===\n{context_text}\n===================================\n\n"
-    for msg in messages[1:]:
+    if tree_map:
+        prompt += f"=== WORKSPACE DIRECTORY MAP ===\n{tree_map}\n================================\n\n"
+    for msg in messages[1:-1]:
         if isinstance(msg, HumanMessage):
             prompt += f"Human: {msg.content}\n"
         elif isinstance(msg, AIMessage):
             prompt += f"Agent: {msg.content}\n"
-    prompt += "Agent: "
+    if context_text:
+        prompt += f"=== RELEVANT BACKGROUND CONTEXT ===\n{context_text}\n===================================\n\n"
+    if injected_code:
+        prompt += f"=== INJECTED SOURCE CODE FILES ===\n{injected_code}\n==================================\n\n"
+    last_msg = messages[-1]
+    prompt += f"Human: {last_msg.content}\nAgent: "
     return prompt
 
 def render_header():
@@ -235,9 +262,12 @@ def main():
     llm = OllamaLLM(
         model=MODEL_NAME,
         num_thread=8,
+        num_ctx=32768,
         keep_alive="30m",
     )
     
+    cwd_tree_map = generate_tree_map(os.getcwd())
+    console.print(f"[dim]Mapped current workspace directory ({os.getcwd()})[/dim]")
     console.print(f"  [reverse green] Ready [/reverse green] Chatting with [bold white]{MODEL_NAME}[/bold white]\n")
 
     while True:
@@ -269,7 +299,29 @@ def main():
                 except Exception as e:
                     pass # Fail silently and keep the UUID if titling fails
 
-            session.history.append(HumanMessage(content=user_input))
+            # Dynamic Workspace & File Injection
+            injected_files_text = ""
+            tokens = re.findall(r'@([a-zA-Z0-9_.-]+)', user_input)
+            clean_user_input = user_input
+            
+            if tokens:
+                cwd = os.getcwd()
+                for token in set(tokens):
+                    # Replace @filename with `filename` so the LLM doesn't get confused by the @ symbol
+                    clean_user_input = clean_user_input.replace(f"@{token}", f"`{token}`")
+                    filepath = find_custom_file(token, cwd)
+                    if filepath:
+                        try:
+                            with open(filepath, 'r', encoding='utf-8') as f:
+                                code = f.read()
+                            injected_files_text += f"\n--- Source Code: {token} ---\n{code}\n"
+                            console.print(f"[dim green]✓ Workspace File Injected: {token}[/dim green]")
+                        except Exception as e:
+                            console.print(f"[dim red]Failed to read {token}: {e}[/dim red]")
+                    else:
+                        console.print(f"[dim yellow]Warning: file '{token}' not found in workspace.[/dim yellow]")
+            
+            session.history.append(HumanMessage(content=clean_user_input))
             
             # LangGraph-based Semantic Orchestration
             console.print("[dim]Analyzing query intent...[/dim]")
@@ -376,7 +428,7 @@ def main():
                 langgraph_app = workflow.compile()
 
             # Execute the LangGraph workflow
-            initial_state = {"question": user_input, "route_name": "generic", "context_text": ""}
+            initial_state = {"question": clean_user_input, "route_name": "generic", "context_text": ""}
             final_state = langgraph_app.invoke(initial_state)
             
             route_name = final_state["route_name"]
@@ -385,7 +437,7 @@ def main():
             # Select the correct System Prompt based on the Route
             active_system_prompt = session.expert_system_prompt if route_name != 'generic' else session.generic_system_prompt
             all_messages = [active_system_prompt] + session.history
-            raw_prompt = extract_prompt(all_messages, context_text)
+            raw_prompt = extract_prompt(all_messages, context_text=context_text, injected_code=injected_files_text, tree_map=cwd_tree_map)
 
             console.print("[bold cyan]Nexus ❯[/bold cyan]")
             
