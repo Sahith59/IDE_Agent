@@ -271,69 +271,64 @@ def main():
 
             session.history.append(HumanMessage(content=user_input))
             
-            # Semantic Routing - Fast Intent Classification
-            # We use a lightweight HuggingFace encoder to vectorize the intent in milliseconds
+            # LangGraph-based Semantic Orchestration
             console.print("[dim]Analyzing query intent...[/dim]")
             
-            # Lazy initialize the router
-            if 'router' not in locals():
-                from semantic_router import Route
-                from semantic_router import SemanticRouter
+            # Lazy initialize the LangGraph Workflow
+            if 'langgraph_app' not in locals():
+                from semantic_router import Route, SemanticRouter
                 from semantic_router.encoders import HuggingFaceEncoder
+                from langchain_chroma import Chroma
+                from langchain_ollama import OllamaEmbeddings
+                import pickle
+                from langgraph.graph import StateGraph, END
+                from typing import TypedDict
                 
+                class GraphState(TypedDict):
+                    question: str
+                    route_name: str
+                    context_text: str
+                    
                 console.print("[dim]Loading Enterprise Router (mxbai-embed-large-v1)...[/dim]")
                 encoder = HuggingFaceEncoder(name="mixedbread-ai/mxbai-embed-large-v1")
                 
-                # Define intent clusters
-                generic_route = Route(
-                    name="generic",
-                    utterances=[
-                        "hello", "hi", "how are you", "write a python script", 
-                        "create binary search", "refactor this code", "fix this error",
-                        "what is python", "debug this loop", "who are you"
-                    ]
-                )
+                # Define intent clusters matching all 5 Enterprise Categories
+                generic_route = Route(name="generic", utterances=["hello", "hi", "how are you", "what is python", "who are you", "write a python script", "refactor this code"])
+                code_route = Route(name="code", utterances=["search the repo for the authentication bug", "explain this class", "where is the login function"])
+                architecture_route = Route(name="architecture", utterances=["how does the system scale", "explain the flowchart", "what is the architecture", "system design"])
+                business_route = Route(name="business_logic", utterances=["what are the business rules", "how does billing work", "user compliance rules", "how does the IDE billing work"])
+                ops_route = Route(name="ops", utterances=["how do I configure the server", "deployment pipeline", "kubernetes config", "restart the service"])
+                tribal_route = Route(name="tribal_knowledge", utterances=["what did the architect say about", "why did we choose this database", "who owns the repository", "read the documentation"])
                 
-                expert_route = Route(
-                    name="expert",
-                    utterances=[
-                        "how does the IDE billing work", "explain the flowchart", 
-                        "what are the business rules", "how do I configure the server",
-                        "read the documentation", "what did the architect say about",
-                        "search the manual for errors"
-                    ]
-                )
-                router = SemanticRouter(encoder=encoder, routes=[generic_route, expert_route], auto_sync="local")
+                router = SemanticRouter(encoder=encoder, routes=[generic_route, code_route, architecture_route, business_route, ops_route, tribal_route], auto_sync="local")
                 
-            route = router(user_input)
-            
-            # RAG Retrieval - ONLY triggers if it's NOT a generic query
-            context_text = ""
-            if getattr(route, 'name', 'expert') != 'generic':
                 chroma_dir = os.path.join(APP_DIR, '..', 'data', 'chroma_db')
-                if os.path.exists(chroma_dir):
+                embeddings_model = OllamaEmbeddings(model="nomic-embed-text")
+                vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings_model) if os.path.exists(chroma_dir) else None
+                
+                bm25_retriever = None
+                if os.path.exists(BM25_INDEX_PATH):
                     try:
-                        from langchain_chroma import Chroma
-                        from langchain_ollama import OllamaEmbeddings
-                        import pickle
+                        with open(BM25_INDEX_PATH, 'rb') as f:
+                            bm25_retriever = pickle.load(f)
+                        bm25_retriever.k = 2
+                    except Exception as e:
+                        console.print(f"[dim red]Warning: BM25 keyword search failed to load: {e}[/dim red]")
+                
+                def classify_node(state: GraphState):
+                    route = router(state["question"])
+                    r_name = getattr(route, 'name', 'generic')
+                    return {"route_name": r_name}
+                    
+                def retrieve_node(state: GraphState):
+                    console.print(f"[dim]Enterprise Route Locked: {state['route_name'].upper()}[/dim]")
+                    console.print("[dim]Expert Route Detected: Performing Hybrid MMR Search (Vector + Keyword)...[/dim]")
+                    
+                    c_text = ""
+                    try:
+                        chroma_results = vector_db.max_marginal_relevance_search(state["question"], k=4, fetch_k=20) if vector_db else []
+                        bm25_results = bm25_retriever.invoke(state["question"]) if bm25_retriever else []
                         
-                        console.print("[dim]Expert Route Detected: Performing Hybrid Search (Vector + Keyword)...[/dim]")
-                        embeddings = OllamaEmbeddings(model="nomic-embed-text")
-                        vector_db = Chroma(persist_directory=chroma_dir, embedding_function=embeddings)
-                        
-                        chroma_results = vector_db.similarity_search(user_input, k=4)
-                        bm25_results = []
-                        
-                        if os.path.exists(BM25_INDEX_PATH):
-                            try:
-                                with open(BM25_INDEX_PATH, 'rb') as f:
-                                    bm25_retriever = pickle.load(f)
-                                bm25_retriever.k = 2  # Top 2 exact keyword matches
-                                bm25_results = bm25_retriever.invoke(user_input)
-                            except Exception as e:
-                                console.print(f"[dim red]Warning: BM25 keyword search failed: {e}[/dim red]")
-                                
-                        # Simple Ensemble deduplication
                         all_results = chroma_results + bm25_results
                         unique_docs = {}
                         for doc in all_results:
@@ -341,32 +336,54 @@ def main():
                             if key not in unique_docs:
                                 unique_docs[key] = doc
                                 
-                        final_results = list(unique_docs.values())[:6] # Cap at 6 total fragments
-                        
+                        final_results = list(unique_docs.values())[:6]
                         if final_results:
                             snippets = []
                             for doc in final_results:
                                 source = os.path.basename(doc.metadata.get("source", "Unknown Document"))
                                 citation_parts = []
-                                if "page" in doc.metadata:
-                                    citation_parts.append(f"Page {doc.metadata['page']}")
-                                if "slide" in doc.metadata:
-                                    citation_parts.append(f"Slide {doc.metadata['slide']}")
-                                if "sheet" in doc.metadata:
-                                    citation_parts.append(f"Sheet {doc.metadata['sheet']}")
-                                    
+                                if "page" in doc.metadata: citation_parts.append(f"Page {doc.metadata['page']}")
+                                if "slide" in doc.metadata: citation_parts.append(f"Slide {doc.metadata['slide']}")
+                                if "sheet" in doc.metadata: citation_parts.append(f"Sheet {doc.metadata['sheet']}")
                                 citation = f" ({', '.join(citation_parts)})" if citation_parts else ""
                                 snippets.append(f"--- Snippet: {source}{citation} ---\n{doc.page_content}")
-                                
-                            context_text = "\n\n".join(snippets)
+                            c_text = "\n\n".join(snippets)
                             console.print(f"[dim green]✓ Found {len(final_results)} highly relevant document fragments.[/dim green]")
                     except Exception as e:
-                        console.print(f"[dim red]Warning: RAG retrieval failed: {e}[/dim red]")
-            else:
-                console.print("[dim]Generic Route Detected: Bypassing Database...[/dim]")
+                        console.print(f"[dim red]Retrieval failed: {e}[/dim red]")
+                    return {"context_text": c_text}
+                    
+                def bypass_node(state: GraphState):
+                    console.print("[dim]Generic Route Detected: Bypassing Database...[/dim]")
+                    return {"context_text": ""}
+                
+                workflow = StateGraph(GraphState)
+                workflow.add_node("classify", classify_node)
+                workflow.add_node("retrieve", retrieve_node)
+                workflow.add_node("bypass", bypass_node)
+                
+                workflow.set_entry_point("classify")
+                
+                def route_after_classification(state: GraphState):
+                    if state["route_name"] == "generic":
+                        return "bypass"
+                    return "retrieve"
+                    
+                workflow.add_conditional_edges("classify", route_after_classification)
+                workflow.add_edge("retrieve", END)
+                workflow.add_edge("bypass", END)
+                
+                langgraph_app = workflow.compile()
+
+            # Execute the LangGraph workflow
+            initial_state = {"question": user_input, "route_name": "generic", "context_text": ""}
+            final_state = langgraph_app.invoke(initial_state)
+            
+            route_name = final_state["route_name"]
+            context_text = final_state.get("context_text", "")
             
             # Select the correct System Prompt based on the Route
-            active_system_prompt = session.expert_system_prompt if getattr(route, 'name', 'expert') != 'generic' else session.generic_system_prompt
+            active_system_prompt = session.expert_system_prompt if route_name != 'generic' else session.generic_system_prompt
             all_messages = [active_system_prompt] + session.history
             raw_prompt = extract_prompt(all_messages, context_text)
 

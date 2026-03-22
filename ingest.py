@@ -138,6 +138,17 @@ def extract_pdf_with_vision(file_path):
         console.print(f"[bold red]Failed to process PDF {os.path.basename(file_path)}: {e}[/bold red]")
     return docs
 
+def extract_markdown(file_path):
+    """Parses raw text from Markdown notes for continuous learning."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        if content.strip():
+            return [LC_Document(page_content=content, metadata={"source": file_path, "type": "markdown"})]
+    except Exception as e:
+        console.print(f"[bold red]Failed to process Markdown {os.path.basename(file_path)}: {e}[/bold red]")
+    return []
+
 def load_documents():
     docs = []
     os.makedirs(RAW_DOCS_DIR, exist_ok=True)
@@ -146,12 +157,13 @@ def load_documents():
     ppt_files = glob.glob(os.path.join(RAW_DOCS_DIR, "*.pptx"))
     excel_files = glob.glob(os.path.join(RAW_DOCS_DIR, "*.xlsx")) + glob.glob(os.path.join(RAW_DOCS_DIR, "*.xls"))
     pdf_files = glob.glob(os.path.join(RAW_DOCS_DIR, "*.pdf"))
+    md_files = glob.glob(os.path.join(RAW_DOCS_DIR, "*.md"))
     
-    if not any([word_files, ppt_files, excel_files, pdf_files]):
-        console.print("[yellow]No supported files (.docx, .pptx, .xlsx, .pdf) found in data/raw_docs/[/yellow]")
+    if not any([word_files, ppt_files, excel_files, pdf_files, md_files]):
+        console.print("[yellow]No supported files (.docx, .pptx, .xlsx, .pdf, .md) found in data/raw_docs/[/yellow]")
         return docs
         
-    console.print(f"[cyan]Found {len(pdf_files)} PDFs, {len(word_files)} Word docs, {len(ppt_files)} PowerPoints, and {len(excel_files)} Excel files.[/cyan]")
+    console.print(f"[cyan]Found {len(pdf_files)} PDFs, {len(word_files)} Word docs, {len(ppt_files)} PowerPoints, {len(excel_files)} Excel files, and {len(md_files)} Markdown notes.[/cyan]")
     
     for file_path in word_files:
         console.print(f"[bold white]Processing {os.path.basename(file_path)}...[/bold white]")
@@ -169,6 +181,10 @@ def load_documents():
     for file_path in pdf_files:
         console.print(f"[bold white]Processing {os.path.basename(file_path)}...[/bold white]")
         docs.extend(extract_pdf_with_vision(file_path))
+        
+    for file_path in md_files:
+        console.print(f"[bold white]Processing {os.path.basename(file_path)}...[/bold white]")
+        docs.extend(extract_markdown(file_path))
         
     return docs
 

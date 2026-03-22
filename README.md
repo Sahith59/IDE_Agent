@@ -6,12 +6,14 @@ Nexus is a fully local, privacy-first, retrieval-augmented generation (RAG) agen
 
 *   **100% Offline & Private:** Powered by a local Ollama LLM (`qwen2.5:14b` / `llama3`). No data ever leaves your SSD.
 *   **Multimodal RAG Pipeline:** Ingests not just text, but embedded flowcharts and images from `.docx`, `.pptx`, and `.pdf` files using Vision Models.
-*   **Enterprise Semantic Router:** Integrates `semantic-router` with the `1.3GB mxbai-embed-large-v1` embedding model to accurately route queries. Generic coding questions instantly bypass the vector database, while expert knowledge questions trigger deep document retrieval.
-*   **Zero Hallucination Strict Mode:** When querying documentation, Nexus is rigidly prompted to answer *only* based on retrieved ChromaDB context.
+*   **LangGraph Orchestration & MMR Retrieval:** The agent's flow is managed by a local LangGraph `StateGraph`. It routes queries into 5 enterprise categories (code, architecture, ops, etc.) using a zero-latency `semantic-router` encoder, then retrieves non-redundant contextual chunks using Max Marginal Relevance (MMR) search.
+*   **Continuous Learning:** Supports on-the-fly knowledge base updates by parsing and indexing locally dropped Markdown (`.md`) documentation.
+*   **Zero Hallucination Strict Mode:** When querying documentation, Nexus is rigidly prompted to answer *only* based on retrieved ChromaDB/BM25 context.
 *   **Blazing Fast Startup:** Employs Lazy Loading architectures so heavy ML libraries (like PyTorch and Transformers) don't lock up macOS during CLI startup.
 
 ## 🛠️ Tech Stack
 *   **Core UI:** Python, Rich (for beautiful CLI, Markdown tables, and live streaming)
+*   **Orchestration & Logic:** LangGraph, LangChain
 *   **Language Models:** Ollama (`qwen2.5:14b` for RAG, `llama3` for Chat, `llama3.2-vision:11b` for images)
 *   **Embeddings & Routing:** `nomic-embed-text` & `mixedbread-ai/mxbai-embed-large-v1`
 *   **Vector Database:** Local ChromaDB
