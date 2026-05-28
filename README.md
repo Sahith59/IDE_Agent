@@ -66,62 +66,74 @@ Any `.py` file in `plugins/` that exports a `PLUGIN` dict with `name`, `descript
 
 ---
 
-## Setup
+## Install
 
-### Prerequisites
-
-- macOS (Apple Silicon recommended)
-- [Ollama](https://ollama.ai/) installed locally
-- Python 3.11+
-
-### Install Dependencies
+### Option 1 — pip (recommended, installs a permanent `nexus` command)
 
 ```bash
-# Create and activate a virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install all dependencies
-pip install -r requirements.txt
+pip install nexusai
 ```
 
-### Pull Required Models
+Then run from any project directory:
 
 ```bash
-ollama pull qwen2.5:14b
-ollama pull nomic-embed-text
-ollama pull llama3.2-vision:11b   # only needed for vision ingestion
+cd /path/to/your/project
+nexus
 ```
 
-### Optional: SSD Model Store
+First launch runs a **setup wizard** that asks for your Ollama models path and lets you pick your default model. Config is saved to `~/.nexus/config.json` and never asked again.
 
-If your Ollama models live on an external drive, set `OLLAMA_MODELS` before starting:
+### Option 2 — Development / from source
 
 ```bash
-export OLLAMA_MODELS="/Volumes/YourDrive/Ollama_Models"
+git clone https://github.com/Sahith59/IDE_Agent.git
+cd IDE_Agent
+pip install -e .
+nexus
 ```
-
-`start_nexus.sh` handles this automatically when configured.
 
 ---
 
-## Usage
+## Prerequisites
 
-### 1. Ingest Your Documentation
+- [Ollama](https://ollama.ai/) installed and running
+- Python 3.11+
+- macOS or Linux
 
-Drop `.pdf`, `.docx`, `.xlsx`, `.pptx`, or `.md` files into `data/raw_docs/`, then:
+### Pull required models
 
 ```bash
-python ingest.py
+ollama pull qwen2.5:14b          # default chat model
+ollama pull nomic-embed-text     # embeddings (for RAG)
+ollama pull llama3.2-vision:11b  # vision ingestion (optional)
 ```
 
-### 2. Start Nexus
+### External model store (SSD / NAS)
+
+If your models live on an external drive, either:
+- Set `OLLAMA_MODELS=/Volumes/Drive/Ollama_Models` before running `nexus`, **or**
+- Enter the path when the setup wizard asks on first launch
+
+---
+
+## Ingest Your Documentation
+
+Drop `.pdf`, `.docx`, `.xlsx`, `.pptx`, or `.md` files into `~/.nexus/raw_docs/`, then:
+
+```bash
+nexus-ingest
+
+# Or point at any directory:
+nexus-ingest /path/to/your/docs
+```
+
+## Start Nexus
 
 ```bash
 # Launch in current directory (Nexus maps it as the active project)
-./start_nexus.sh
+nexus
 
-# Or point at a specific project
+# Or with start_nexus.sh (for SSD model setup on macOS):
 ./start_nexus.sh /path/to/your/project
 ```
 
@@ -176,7 +188,7 @@ python ingest.py
 
 ## Writing a Plugin
 
-Create `plugins/myplugin.py`:
+Create `~/.nexus/plugins/myplugin.py`:
 
 ```python
 def run(arg, ctx):
@@ -191,27 +203,43 @@ PLUGIN = {
 }
 ```
 
-Restart Nexus — `/myplugin` is now a live command.
+Restart Nexus — `/myplugin` is now a live command. Built-in sample plugin (`/hello`) is included with the package.
 
 ---
+
+## Data Directory
+
+All persistent data lives in `~/.nexus/` — survives upgrades and reinstalls:
+
+```
+~/.nexus/
+├── config.json     # ollama path, default model
+├── history/        # saved sessions
+├── chroma_db/      # vector database (after nexus-ingest)
+├── bm25_index.pkl  # keyword index (after nexus-ingest)
+├── raw_docs/       # drop files here before nexus-ingest
+├── hf_cache/       # HuggingFace embedding model cache
+├── plugins/        # your custom plugins
+└── docs/           # /pr generated Word documents
+```
 
 ## Project Structure
 
 ```
 IDE_Agent/
-├── app/
-│   └── cli.py              # Main CLI application (v3.0.0)
-├── data/
-│   ├── raw_docs/           # Drop ingestion files here
-│   └── history/            # Session JSON files
-├── plugins/
-│   └── hello.py            # Sample plugin
-├── pr_generator/
-│   └── generator.py        # GitHub PR → .docx documentation tool
-├── ingest.py               # RAG ingestion pipeline
-├── start_nexus.sh          # macOS launcher
-├── requirements.txt        # Python dependencies
-└── COMMANDS_GUIDE.md       # Full command reference
+├── nexusai/                # Installable Python package
+│   ├── __init__.py
+│   ├── cli.py              # Main CLI
+│   ├── config.py           # ~/.nexus path management
+│   ├── setup_wizard.py     # First-run wizard
+│   ├── ingest.py           # RAG pipeline
+│   ├── pr_generator.py     # GitHub PR → .docx tool
+│   └── plugins/
+│       └── hello.py        # Built-in sample plugin
+├── pyproject.toml          # Package config + entry points
+├── start_nexus.sh          # SSD/external model launcher (macOS)
+├── requirements.txt        # Direct dependencies
+└── README.md
 ```
 
 ---

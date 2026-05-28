@@ -35,9 +35,9 @@ sleep 3
 echo "Starting Python Environment..."
 source "$VENV_DIR/bin/activate"
 
-# 3. Launch the Chat CLI (CWD is the active project directory)
+# 3. Launch Nexus (installed as CLI entry point via pip install -e .)
 echo "Launching Nexus..."
-python "$APP_DIR/cli.py"
+nexus
 
 # --- Cleanup happens after the CLI exits ---
 echo "Shutting down..."
