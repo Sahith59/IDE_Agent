@@ -35,3 +35,8 @@ feature_roadmap.md
 
 # Entire Data directory (including docs)
 data/
+
+# Python build artifacts
+dist/
+build/
+*.egg-info/

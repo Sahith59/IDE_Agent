@@ -1935,6 +1935,21 @@ def main():
                         injected += f"\n--- Source: {expanded} ---\n{content}\n"
                         console.print(f"  [dim {ACC}]✓ Auto-injected: {os.path.basename(expanded)}[/dim {ACC}]")
 
+                # Detect paths with spaces that end in a known file extension.
+                # Catches: /Users/me/Desktop/document name (2).pdf  — space breaks the bare-path regex above.
+                for m in re.finditer(
+                    r'(/[^\n\'"]*?\.(?:pdf|docx|pptx|xlsx|xls|txt|md|py|js|ts|json|yaml|yml|csv))',
+                    user_input, re.IGNORECASE
+                ):
+                    candidate = m.group(1).strip()
+                    if not os.path.exists(candidate): continue
+                    real = os.path.realpath(candidate)
+                    if real in injected_paths: continue
+                    injected_paths.add(real)
+                    content = read_any_path(candidate)
+                    injected += f"\n--- Source: {candidate} ---\n{content}\n"
+                    console.print(f"  [dim {ACC}]✓ Injected: {os.path.basename(candidate)}[/dim {ACC}]")
+
                 # Merge web context into injected
                 if web_context:
                     injected = f"\n=== WEB SEARCH RESULTS ===\n{web_context}\n==========================\n" + injected
