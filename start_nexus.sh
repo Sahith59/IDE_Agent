@@ -3,42 +3,39 @@ echo "============================================="
 echo "       IDE Expert Agent (Nexus) - macOS      "
 echo "============================================="
 
-# Keep track of where the script is run from (the SSD root path for your project)
-SSD=$(dirname "$(realpath "$0")")
-echo "Detected Project Root at: $SSD"
-
-# Important directories 
-export VENV_DIR="$SSD/mac/venv"
-export APP_DIR="$SSD/app"
-
-# Point to your existing models directory on the parent SSD layout
-export OLLAMA_MODELS="/Volumes/Sahith_SSD/Ollama_Models"
-
-# Set up the local Ollama binaries inside our project
-export OLLAMA_HOME="$SSD/ollama/mac"
-
-# 1. Start Ollama server in the background
-echo "Starting local Ollama server..."
-# Using the Host machine's Ollama or downloaded local Ollama if applicable
-# For this setup, assuming Ollama exists in the system or you followed the guide to place it in ollama/mac/
-if [ -f "$OLLAMA_HOME/ollama" ]; then
-    "$OLLAMA_HOME/ollama" serve &
-    OLLAMA_PID=$!
+# Optional: pass a project directory as the first argument.
+#   ./start_nexus.sh /path/to/my/project
+# If omitted, Nexus runs in the current working directory.
+if [ -n "$1" ] && [ -d "$1" ]; then
+    cd "$1" || exit 1
+    echo "Project directory: $1"
 else
-    echo "Warning: No local Ollama binary found at $OLLAMA_HOME/ollama."
-    echo "Assuming Ollama is running globally on the host Mac."
-    # We still want to let it run, it'll connect to localhost:11434
-    OLLAMA_PID=""
+    echo "Project directory: $(pwd)"
 fi
 
-# Give Ollama a few seconds to boot up completely
+# Nexus install root (where this script lives)
+SSD=$(dirname "$(realpath "$0")")
+
+# Important directories
+export VENV_DIR="/Volumes/Sahith_SSD/IDE_Expert_Project/mac/venv"
+export APP_DIR="$SSD/app"
+
+# Point to the SSD model store — avoids downloading anything to Mac
+export OLLAMA_MODELS="/Volumes/Sahith_SSD/Ollama_Models"
+
+# 1. Start Ollama server with SSD models path
+echo "Starting Ollama server (using SSD models)..."
+pkill -x ollama 2>/dev/null
+sleep 2
+OLLAMA_MODELS="$OLLAMA_MODELS" /opt/homebrew/bin/ollama serve > /tmp/nexus_ollama.log 2>&1 &
+OLLAMA_PID=$!
 sleep 3
 
 # 2. Activate python virtual environment
 echo "Starting Python Environment..."
 source "$VENV_DIR/bin/activate"
 
-# 3. Launch the Chat CLI
+# 3. Launch the Chat CLI (CWD is the active project directory)
 echo "Launching Nexus..."
 python "$APP_DIR/cli.py"
 

@@ -1,0 +1,41 @@
+# Core LLM & Orchestration
+langchain-ollama>=0.2.0
+langchain-chroma>=0.1.0
+langchain-community>=0.3.0
+langchain-core>=0.3.0
+langchain-text-splitters>=0.3.0
+langgraph>=0.2.0
+
+# Vector DB & Retrieval
+chromadb>=0.5.0
+rank-bm25>=0.2.2
+
+# Embeddings & Semantic Routing
+semantic-router>=0.0.72
+transformers>=4.40.0
+torch>=2.2.0
+
+# CLI & UI
+rich>=13.7.0
+
+# Web Search
+ddgs>=6.0.0
+duckduckgo-search>=6.0.0
+
+# Clipboard
+pyperclip>=1.8.2
+
+# PDF Parsing
+PyMuPDF>=1.24.0
+
+# Document Parsing
+python-docx>=1.1.0
+docx2txt>=0.8
+python-pptx>=0.6.23
+openpyxl>=3.1.0
+pandas>=2.2.0
+
+# Utilities
+tabulate>=0.9.0
+requests>=2.31.0
+Pillow>=10.0.0
