@@ -109,6 +109,7 @@ def build_chat_help() -> str:
   [bold {YOU}]/search [dim]<keyword>[/dim][/bold {YOU}]       Search all sessions by keyword or tag
   [bold {YOU}]/diagnose [dim]<error>[/dim][/bold {YOU}]      Root-cause error analysis
   [bold {YOU}]/config[/bold {YOU}]                  Show Nexus config (model, paths)
+  [bold {YOU}]/connect [dim]<url>[/dim][/bold {YOU}]           Change Ollama server URL (e.g. http://localhost:11434)
   [bold {YOU}]/exit[/bold {YOU}]                    Save and exit
 
 [bold {PRI}]FILE INJECTION[/bold {PRI}]
@@ -1511,16 +1512,50 @@ def cmd_config_show() -> None:
     models_path = _cfg.get_ollama_models_path() or "[dim]default Ollama location[/dim]"
     rows = (
         f"  [dim]Config file:[/dim]    [white]{_cfg.CONFIG_FILE}[/white]\n"
+        f"  [dim]Ollama server:[/dim]  [bold {ACC}]{_cfg.get_ollama_host()}[/bold {ACC}]\n"
         f"  [dim]Default model:[/dim]  [bold {ACC}]{cfg.get('default_model','—')}[/bold {ACC}]\n"
         f"  [dim]Models path:[/dim]    [white]{models_path}[/white]\n"
         f"  [dim]History:[/dim]        [white]{_cfg.HISTORY_DIR}[/white]\n"
         f"  [dim]Plugins:[/dim]        [white]{_cfg.USER_PLUGINS_DIR}[/white]\n"
         f"  [dim]Knowledge base:[/dim] [white]{_cfg.CHROMA_DB_DIR}[/white]\n"
-        f"  [dim]HF cache:[/dim]       [white]{_cfg.HF_CACHE_DIR}[/white]"
+        f"  [dim]HF cache:[/dim]       [white]{_cfg.HF_CACHE_DIR}[/white]\n\n"
+        f"  [dim]To change server: [/dim][bold {YOU}]/connect http://host:11434[/bold {YOU}]"
     )
     console.print(Panel(rows,
         title=f"[bold {PRI}]  Nexus Config  [/bold {PRI}]",
         border_style=PRI, box=box.HEAVY, padding=(1, 2)))
+
+
+def cmd_connect(host_arg: str, session, model_name: str) -> "OllamaLLM | None":
+    """Change Ollama host + reconnect. Returns a new LLM instance or None on failure."""
+    host = host_arg.strip().rstrip("/")
+    if not host:
+        console.print(
+            f"\n  [dim]Current Ollama server:[/dim] [bold {ACC}]{_cfg.get_ollama_host()}[/bold {ACC}]\n"
+            f"  [dim]Usage: /connect http://host:11434[/dim]\n"
+        )
+        return None
+    if not host.startswith("http"):
+        host = f"http://{host}"
+
+    console.print(f"\n  [dim]Connecting to[/dim] [bold white]{host}[/bold white][dim]...[/dim]")
+    try:
+        import requests as _req
+        r = _req.get(f"{host}/api/tags", timeout=5)
+        if r.status_code != 200:
+            err(f"Ollama responded with HTTP {r.status_code}. Is it running at {host}?")
+            return None
+        # Save to config
+        cfg = _cfg.get_config()
+        cfg["ollama_host"] = host
+        _cfg.save_config(cfg)
+        os.environ["OLLAMA_HOST"] = host
+        new_llm = OllamaLLM(model=model_name, num_thread=8, num_ctx=32768, keep_alive="30m")
+        ok(f"Connected to {host}  ·  model: {model_name}")
+        return new_llm
+    except Exception as e:
+        err(f"Cannot reach Ollama at {host}: {e}")
+        return None
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -1645,6 +1680,11 @@ def main():
 
                     elif cmd == "config":
                         cmd_config_show()
+
+                    elif cmd == "connect":
+                        new_llm = cmd_connect(arg, session, model_name)
+                        if new_llm is not None:
+                            llm = new_llm
 
                     elif cmd == "read":
                         if not arg:

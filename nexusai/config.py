@@ -45,6 +45,19 @@ def get_default_model() -> str:
     return get_config().get("default_model", "qwen2.5:14b")
 
 
+def get_ollama_host() -> str:
+    """Returns the Ollama base URL. Checks env var, then config, then default."""
+    env_host = os.environ.get("OLLAMA_HOST", "")
+    if env_host:
+        if not env_host.startswith("http"):
+            env_host = f"http://{env_host}"
+        return env_host.rstrip("/")
+    cfg_host = get_config().get("ollama_host", "")
+    if cfg_host:
+        return cfg_host.rstrip("/")
+    return "http://localhost:11434"
+
+
 def get_ollama_models_path() -> str | None:
     env_path = os.environ.get("OLLAMA_MODELS")
     if env_path and os.path.isdir(env_path):
@@ -62,9 +75,11 @@ def discover_models(models_path: str | None = None) -> list[tuple[str, str]]:
     """
     models: list[tuple[str, str]] = []
 
+    host = get_ollama_host()
+    env = {**os.environ, "OLLAMA_HOST": host}
     try:
         result = subprocess.run(
-            ["ollama", "list"], capture_output=True, text=True, timeout=8
+            ["ollama", "list"], capture_output=True, text=True, timeout=8, env=env
         )
         if result.returncode == 0:
             for line in result.stdout.strip().split("\n")[1:]:
@@ -101,5 +116,7 @@ def apply_env() -> None:
     models_path = cfg.get("ollama_models_path") or os.environ.get("OLLAMA_MODELS", "")
     if models_path:
         os.environ["OLLAMA_MODELS"] = models_path
+    # Set OLLAMA_HOST so the Ollama SDK uses the configured server
+    os.environ.setdefault("OLLAMA_HOST", get_ollama_host())
     os.environ.setdefault("HF_HOME", HF_CACHE_DIR)
     os.makedirs(os.environ["HF_HOME"], exist_ok=True)

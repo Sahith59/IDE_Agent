@@ -1711,6 +1711,24 @@ def main():
                     elif cmd == "model":
                         console.print(f"\n  [dim]Active model:[/dim] [bold {ACC}]{session.model}[/bold {ACC}]\n")
 
+                    elif cmd == "connect":
+                        host = (arg.strip().rstrip("/") or "").replace("http://","").replace("https://","")
+                        if not host:
+                            console.print(f"\n  [dim]Usage: /connect http://host:11434[/dim]\n")
+                        else:
+                            full = f"http://{host}"
+                            try:
+                                import requests as _req
+                                r = _req.get(f"{full}/api/tags", timeout=5)
+                                if r.status_code == 200:
+                                    os.environ["OLLAMA_HOST"] = full
+                                    llm = OllamaLLM(model=model_name, num_thread=8, num_ctx=32768, keep_alive="30m")
+                                    ok(f"Connected to {full}  ·  model: {model_name}")
+                                else:
+                                    err(f"Ollama at {full} returned HTTP {r.status_code}")
+                            except Exception as e:
+                                err(f"Cannot reach {full}: {e}")
+
                     elif cmd == "read":
                         if not arg:
                             err("Usage: /read <path>")

@@ -90,8 +90,41 @@ def run_wizard() -> None:
         cfg["ollama_models_path"] = models_path
         os.environ["OLLAMA_MODELS"] = models_path
 
-    # ── Step 2: Discover and select default model ─────────────────────────────
-    _step(2, 3, "Select Default Model")
+    # ── Step 2: Ollama host URL ───────────────────────────────────────────────
+    _step(2, 4, "Ollama Server URL")
+
+    console.print(
+        "  Nexus connects to your local Ollama server.\n"
+        "  The default is [bold white]http://localhost:11434[/bold white].\n\n"
+        "  If you run Ollama on a different port or remote machine, enter it here.\n"
+        "  [dim]Examples: http://localhost:8080  |  http://192.168.1.10:11434[/dim]"
+    )
+    console.print()
+    env_host = os.environ.get("OLLAMA_HOST", "")
+    if env_host:
+        console.print(
+            f"  [dim]Detected[/dim] [bold {ACC}]OLLAMA_HOST[/bold {ACC}]"
+            f" [dim]env var →[/dim] [white]{env_host}[/white]"
+        )
+        ollama_host = env_host
+    else:
+        raw_host = console.input(
+            f"[dim][[/dim] [{PRI}]Ollama URL[/{PRI}] [{PRI}]›[/{PRI}]  "
+        ).strip().rstrip("/")
+
+        if raw_host:
+            if not raw_host.startswith("http"):
+                raw_host = f"http://{raw_host}"
+            ollama_host = raw_host
+            console.print(f"\n  [bold {ACC}]✓[/bold {ACC}]  Using: [white]{ollama_host}[/white]\n")
+        else:
+            ollama_host = "http://localhost:11434"
+            console.print(f"\n  [dim]Using default: {ollama_host}[/dim]\n")
+
+    cfg["ollama_host"] = ollama_host
+
+    # ── Step 3: Discover and select default model ─────────────────────────────
+    _step(3, 4, "Select Default Model")
 
     console.print(f"  [dim]Scanning for available models...[/dim]")
     models = _cfg.discover_models(models_path or None)
@@ -152,11 +185,12 @@ def run_wizard() -> None:
     cfg["setup_complete"]  = True
     _cfg.save_config(cfg)
 
-    # ── Step 3: Done ──────────────────────────────────────────────────────────
-    _step(3, 3, "Setup Complete")
+    # ── Step 4: Done ──────────────────────────────────────────────────────────
+    _step(4, 4, "Setup Complete")
 
     console.print(Panel(
         f"  [bold {ACC}]✓[/bold {ACC}]  Config saved to [white]~/.nexus/config.json[/white]\n"
+        f"  [bold {ACC}]✓[/bold {ACC}]  Ollama server:  [bold white]{ollama_host}[/bold white]\n"
         f"  [bold {ACC}]✓[/bold {ACC}]  Default model:  [bold white]{default_model}[/bold white]\n"
         f"  [bold {ACC}]✓[/bold {ACC}]  Sessions:       [white]~/.nexus/history/[/white]\n"
         f"  [bold {ACC}]✓[/bold {ACC}]  Knowledge base: [white]~/.nexus/chroma_db/[/white]\n\n"
