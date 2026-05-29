@@ -122,7 +122,8 @@ If your models live on an external drive, either:
 
 When you run `nexus` for the first time, you'll see the animated NEXUS logo and an interactive session browser:
 
-![Nexus CLI Main Interface](image1.png)
+<img width="1489" height="921" alt="image" src="https://github.com/user-attachments/assets/13553a1f-66ab-42d1-80f1-94f5773c0f93" />
+
 
 The main screen shows:
 - **Animated NEXUS splash** with version and core features
@@ -135,7 +136,9 @@ The main screen shows:
 
 Type `/instructions` to access the paginated guide:
 
-![Nexus Instructions & Onboarding Guide](image2.png)
+<img width="1485" height="914" alt="Screenshot 2026-05-28 at 10 29 25 PM" src="https://github.com/user-attachments/assets/03295781-349d-4c98-b363-4746a547f029" />
+
+
 
 The guide covers:
 - **What is Nexus?** — Overview of the offline AI assistant
