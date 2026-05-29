@@ -8,7 +8,7 @@
 [![macOS](https://img.shields.io/badge/macOS-Only-black.svg?logo=apple)](https://www.apple.com/macos/)
 [![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
-Nexus is a fully local, privacy-first, retrieval-augmented generation (RAG) agent that functions as an offline expert team member for your codebase. It runs entirely inside your terminal — no cloud API calls, no data leaving your machine.
+Nexus is a fully local, privacy-first, retrieval-augmented generation (RAG) agent that functions as an offline expert team member for your codebase. It runs entirely inside your terminal — no cloud, no telemetry, no data leaves your machine.
 
 ---
 
@@ -36,7 +36,7 @@ Nexus is a fully local, privacy-first, retrieval-augmented generation (RAG) agen
 
 ### 1. LangGraph Semantic Orchestration
 
-Every query is vectorized by `mxbai-embed-large-v1` and classified into one of five categories: `Code`, `Architecture`, `Business Logic`, `Ops`, or `Tribal Knowledge`. A `StateGraph` DAG routes generic queries directly to the LLM (bypassing the database) and domain queries through the Ensemble Retrieval node.
+Every query is vectorized by `mxbai-embed-large-v1` and classified into one of five categories: `Code`, `Architecture`, `Business Logic`, `Ops`, or `Tribal Knowledge`. A `StateGraph` DAG routes generated context through the appropriate RAG pipeline.
 
 ### 2. Dual-Index Hybrid RAG Pipeline
 
@@ -50,11 +50,11 @@ Retrieval uses MMR (`fetch_k=20`, `k=4`) to guarantee the four retrieved chunks 
 
 ### 4. Multimodal Vision Ingestion
 
-`ingest.py` parses `.docx`, `.pptx`, and `.pdf` files, extracts embedded diagrams, and processes them through `llama3.2-vision:11b`. The generated semantic descriptions are embedded into the same databases as text content.
+`ingest.py` parses `.docx`, `.pptx`, and `.pdf` files, extracts embedded diagrams, and processes them through `llama3.2-vision:11b`. The generated semantic descriptions are embedded into the same vector store.
 
 ### 5. Workspace Awareness & File Injection
 
-On startup, Nexus maps the active project directory (`os.getcwd()`) and injects the folder tree into every prompt. The `@filename` and `@/absolute/path` syntax reads raw source directly into the context window at zero latency — no chunking, no retrieval delay.
+On startup, Nexus maps the active project directory (`os.getcwd()`) and injects the folder tree into every prompt. The `@filename` and `@/absolute/path` syntax reads raw source directly into the context window.
 
 ### 6. Agent Mode (`@agent`)
 
@@ -62,7 +62,7 @@ On startup, Nexus maps the active project directory (`os.getcwd()`) and injects 
 
 ### 7. Plugin System
 
-Any `.py` file in `plugins/` that exports a `PLUGIN` dict with `name`, `description`, and `run` keys is automatically registered as a `/name` slash command. The `run(arg, ctx)` function receives the argument string and a context dict with `session`, `llm`, `console`, and `root_dir`.
+Any `.py` file in `plugins/` that exports a `PLUGIN` dict with `name`, `description`, and `run` keys is automatically registered as a `/name` slash command. The `run(arg, ctx)` function receives the console, session, and RAG context.
 
 ---
 
@@ -113,6 +113,35 @@ ollama pull llama3.2-vision:11b  # vision ingestion (optional)
 If your models live on an external drive, either:
 - Set `OLLAMA_MODELS=/Volumes/Drive/Ollama_Models` before running `nexus`, **or**
 - Enter the path when the setup wizard asks on first launch
+
+---
+
+## Demo & Getting Started
+
+### First Launch Experience
+
+When you run `nexus` for the first time, you'll see the animated NEXUS logo and an interactive session browser:
+
+![Nexus CLI Main Interface](image1.png)
+
+The main screen shows:
+- **Animated NEXUS splash** with version and core features
+- **Continue a conversation** — browse previous sessions with timestamps
+- **Select a model** — choose between available Ollama models (qwen2.5:14b recommended)
+- **Active Project banner** — displays the current directory being analyzed
+- **Session status bar** — shows model, exchange count, and git branch
+
+### Interactive Onboarding
+
+Type `/instructions` to access the paginated guide:
+
+![Nexus Instructions & Onboarding Guide](image2.png)
+
+The guide covers:
+- **What is Nexus?** — Overview of the offline AI assistant
+- **How to open Nexus in a project** — Multiple launch methods
+- **Ollama Setup & Model Connection** — Installation and configuration steps
+- **Model management** — Pulling models, connecting to remote servers
 
 ---
 
