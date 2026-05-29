@@ -1,2 +1,2 @@
-"""nexusai — Offline IDE Expert Agent"""
-__version__ = "3.0.0"
+"""nexusai — Offline Expert Agent"""
+__version__ = "3.1.0"

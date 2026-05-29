@@ -35,9 +35,13 @@ sleep 3
 echo "Starting Python Environment..."
 source "$VENV_DIR/bin/activate"
 
-# 3. Launch Nexus (installed as CLI entry point via pip install -e .)
+# 3. Launch Nexus
 echo "Launching Nexus..."
-nexus
+if command -v nexus &>/dev/null; then
+    nexus
+else
+    python "$APP_DIR/cli.py"
+fi
 
 # --- Cleanup happens after the CLI exits ---
 echo "Shutting down..."
