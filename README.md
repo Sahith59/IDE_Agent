@@ -71,7 +71,7 @@ Any `.py` file in `plugins/` that exports a `PLUGIN` dict with `name`, `descript
 ### Option 1 — pip (recommended, installs a permanent `nexus` command)
 
 ```bash
-pip install nexusai
+pip install ollama-term
 ```
 
 Then run from any project directory:
