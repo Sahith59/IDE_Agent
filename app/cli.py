@@ -1316,6 +1316,49 @@ def cmd_instructions() -> None:
 
         # ── Page 2 ────────────────────────────────────────────────────────────
         (
+            "Ollama Setup & Model Connection",
+            f"""\
+[bold {PRI}]Install Ollama[/bold {PRI}]
+
+  [dim]macOS:[/dim]   [bold {YOU}]brew install ollama[/bold {YOU}]
+  [dim]Linux:[/dim]   [bold {YOU}]curl -fsSL https://ollama.com/install.sh | sh[/bold {YOU}]
+  [dim]Or download from:[/dim] [bold white]https://ollama.com[/bold white]
+
+[bold {PRI}]Start the server[/bold {PRI}]
+
+  [bold {YOU}]ollama serve[/bold {YOU}]
+  [dim]Run this in a separate terminal before launching Nexus.[/dim]
+  [dim](start_nexus.sh does this automatically if you use it)[/dim]
+
+[bold {PRI}]Pull models (one-time per model)[/bold {PRI}]
+
+  [bold {YOU}]ollama pull qwen2.5:14b[/bold {YOU}]       [dim]← recommended chat model[/dim]
+  [bold {YOU}]ollama pull llama3[/bold {YOU}]             [dim]← fast alternative[/dim]
+  [bold {YOU}]ollama pull nomic-embed-text[/bold {YOU}]   [dim]← required for document search[/dim]
+
+[bold {PRI}]Connect to a different Ollama server[/bold {PRI}]
+
+  By default Nexus connects to [bold white]http://localhost:11434[/bold white].
+  If you run Ollama on a different port or remote machine, use:
+
+  [bold {YOU}]/connect http://localhost:8080[/bold {YOU}]          [dim]← different port[/dim]
+  [bold {YOU}]/connect http://192.168.1.10:11434[/bold {YOU}]     [dim]← remote machine[/dim]
+
+  The connection is validated and saved to config automatically.
+
+[bold {PRI}]Models on an external drive (SSD / NAS)[/bold {PRI}]
+
+  Enter the path in the setup wizard on first launch, or:
+  [bold {YOU}]OLLAMA_MODELS=/Volumes/MySSD/Ollama_Models nexus[/bold {YOU}]
+
+[bold {PRI}]Check current config[/bold {PRI}]
+
+  [bold {YOU}]/config[/bold {YOU}]  → shows Ollama server URL, default model, all paths\
+""",
+        ),
+
+        # ── Page 3 ────────────────────────────────────────────────────────────
+        (
             "Having a Conversation",
             f"""\
 [bold {PRI}]Just type and press Enter[/bold {PRI}]
@@ -1346,7 +1389,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 3 ────────────────────────────────────────────────────────────
+        # ── Page 4 ────────────────────────────────────────────────────────────
         (
             "Working with Files",
             f"""\
@@ -1388,7 +1431,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 4 ────────────────────────────────────────────────────────────
+        # ── Page 5 ────────────────────────────────────────────────────────────
         (
             "Project & Git Context",
             f"""\
@@ -1421,7 +1464,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 5 ────────────────────────────────────────────────────────────
+        # ── Page 6 ────────────────────────────────────────────────────────────
         (
             "Sessions & History",
             f"""\
@@ -1457,7 +1500,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 6 ────────────────────────────────────────────────────────────
+        # ── Page 7 ────────────────────────────────────────────────────────────
         (
             "Web Search & Live Data",
             f"""\
@@ -1482,7 +1525,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 7 ────────────────────────────────────────────────────────────
+        # ── Page 8 ────────────────────────────────────────────────────────────
         (
             "Power Tools",
             f"""\
@@ -1513,7 +1556,7 @@ def cmd_instructions() -> None:
 """,
         ),
 
-        # ── Page 8 ────────────────────────────────────────────────────────────
+        # ── Page 9 ────────────────────────────────────────────────────────────
         (
             "Plugins & Quick Reference",
             f"""\
@@ -1552,6 +1595,8 @@ def cmd_instructions() -> None:
   [bold {YOU}]/manage[/bold {YOU}]        Delete / clone sessions
   [bold {YOU}]/pr[/bold {YOU}]            PR documentation generator
   [bold {YOU}]@agent[/bold {YOU}]         File edit mode
+  [bold {YOU}]/connect[/bold {YOU}] [dim]<url>[/dim]   Change Ollama server
+  [bold {YOU}]/config[/bold {YOU}]        Show active server, model, paths
   [bold {YOU}]/exit[/bold {YOU}]          Save and quit\
 """,
         ),
